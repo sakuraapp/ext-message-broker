@@ -34,6 +34,8 @@ export class MessageBroker extends EventEmitter implements Broker {
 
     destroy(): void {
         browser.runtime.onMessage.removeListener(this.onMessage)
+        
+        this.frameManager.paths = null
     }
 
     private onMessage<T>(message: Message<T>, sender: Runtime.MessageSender) {

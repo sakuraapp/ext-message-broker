@@ -2,6 +2,7 @@ import { browser } from 'webextension-polyfill-ts'
 import { SourceInfo } from '../types'
 
 // a frame path is an array of frames starting from the top-most parent frame to the target frame
+// todo: optimize this
 
 export type FramePath = Array<number>
 export type FrameKey = string
