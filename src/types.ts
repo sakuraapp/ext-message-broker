@@ -1,4 +1,4 @@
-import { MessageEvent } from "./events/message.event"
+import { MessageEvent } from './events/message.event'
 
 export interface SourceInfo {
     tabId: number

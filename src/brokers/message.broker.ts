@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events'
 import { browser, Runtime } from 'webextension-polyfill-ts'
-import { MessageEvent } from '~/events/message.event'
-import { FrameManager } from '~/managers/frame.manager'
+import { MessageEvent } from '../events/message.event'
+import { FrameManager } from '../managers/frame.manager'
 import {
     Broker,
     BrokerOptions,
