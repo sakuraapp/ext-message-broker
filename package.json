@@ -1,0 +1,33 @@
+{
+  "name": "ext-message-broker",
+  "version": "0.1.0",
+  "description": "Easier communication for browser extensions",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pyrodash/ext-message-broker.git"
+  },
+  "author": {
+    "name": "Ahmed El-Marakby",
+    "email": "ahmedelmarakby@hotmail.com",
+    "url": "https://ahmedelmarakby.com"
+  },
+  "bugs": {
+    "url": "https://github.com/pyrodash/ext-message-broker/issues"
+  },
+  "homepage": "https://github.com/pyrodash/ext-message-broker#readme",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/chrome": "^0.0.145",
+    "@types/events": "^3.0.0",
+    "typescript": "^4.3.2"
+  },
+  "dependencies": {
+    "events": "^3.3.0",
+    "webextension-polyfill-ts": "^0.25.0"
+  }
+}
