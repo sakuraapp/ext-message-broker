@@ -12,5 +12,5 @@ export const DEFAULT_WEB_OPTIONS: WebBrokerOptions = {
     ...DEFAULT_OPTIONS,
     allowExternal: false,
     targetOrigin: location ? location.href : null,
-    extensionId: browser.runtime?.id,
+    extensionId: (browser.runtime || {}).id,
 }
