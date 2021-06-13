@@ -1,4 +1,4 @@
-import { browser } from 'webextension-polyfill-ts'
+import { browser } from '../browser'
 import { SourceInfo } from '../types'
 
 // a frame path is an array of frames starting from the top-most parent frame to the target frame

@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events'
-import { browser, Runtime } from 'webextension-polyfill-ts'
+import { Runtime } from 'webextension-polyfill-ts'
+import { browser } from '../browser'
 import { MessageEvent } from '../events/message.event'
 import { FrameManager } from '../managers/frame.manager'
 import {

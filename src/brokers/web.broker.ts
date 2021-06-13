@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events'
+import { browser } from '../browser'
 import { DEFAULT_WEB_OPTIONS, WebMessageType } from '../constants'
 import { MessageEvent } from '../events/message.event'
 import {
@@ -50,7 +51,7 @@ export class WebBroker extends EventEmitter implements Broker {
             ...opts,
         }
 
-        this.mode = chrome.extension
+        this.mode = browser.extension
             ? BrokerMode.ContentScript
             : BrokerMode.External
 
@@ -70,7 +71,7 @@ export class WebBroker extends EventEmitter implements Broker {
         }
 
         if (this.mode === BrokerMode.ContentScript) {
-            chrome.runtime.onMessage.addListener(this.onMessage)
+            browser.runtime.onMessage.addListener(this.onMessage)
         }
     }
 
@@ -80,7 +81,7 @@ export class WebBroker extends EventEmitter implements Broker {
         }
 
         if (this.mode === BrokerMode.ContentScript) {
-            chrome.runtime.onMessage.removeListener(this.onMessage)
+            browser.runtime.onMessage.removeListener(this.onMessage)
         }
     }
 
@@ -108,7 +109,7 @@ export class WebBroker extends EventEmitter implements Broker {
                     return
                 }
 
-                chrome.runtime.sendMessage(this.createMessage<T>(message))
+                browser.runtime.sendMessage(this.createMessage<T>(message))
             } else {
                 this.onMessage<T>(message)
             }
@@ -158,7 +159,7 @@ export class WebBroker extends EventEmitter implements Broker {
         message = this.createMessage(message)
         
         if (this.mode === BrokerMode.ContentScript) {
-            chrome.runtime.sendMessage(message)
+            browser.runtime.sendMessage(message)
         } else {
             this.dispatchWebMessage<T>(message)
         }
