@@ -62,6 +62,10 @@ export class MessageBroker extends EventEmitter implements Broker {
     }
 
     private isNamespaceAllowed(input: string): boolean {
+        if (this.opts.namespace === undefined || this.opts.namespace === null) {
+            return input === undefined || input === null || input.length === 0
+        }
+        
         return input === this.opts.namespace
     }    
 
@@ -80,6 +84,8 @@ export class MessageBroker extends EventEmitter implements Broker {
             tabId: sender.tab.id,
             frameId: sender.frameId,
         }
+
+        message.source = target
 
         if (message.targetMode) {
             switch (message.targetMode) {

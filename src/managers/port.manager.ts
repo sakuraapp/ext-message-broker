@@ -20,7 +20,7 @@ function isPortTarget(port: Port, target: SourceInfo) {
 }
 
 export class PortManager extends EventEmitter {
-    ports: Port[]
+    ports: Port[] = []
 
     add(port: Port) {
         port.disconnected = false

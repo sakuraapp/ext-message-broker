@@ -16,7 +16,11 @@ export type BrowserMessage<T> = globalThis.MessageEvent<T>
 
 export enum BrokerMode {
     Direct = 'direct',
-    External = 'external'
+    External = 'external',
+}
+
+export enum LocalEventType {
+    Disconnect = 'disconnect',
 }
 
 export interface WebMessage<T> {
@@ -81,6 +85,7 @@ export class WebBroker extends EventEmitter implements Broker {
 
         this.onWebMessage = this.onWebMessage.bind(this)
         this.onMessage = this.onMessage.bind(this)
+        this.onDisconnect = this.onDisconnect.bind(this)
 
         if (!this.opts.extensionId) {
             throw new Error('No extensionId provided.')
@@ -96,12 +101,18 @@ export class WebBroker extends EventEmitter implements Broker {
 
         if (this.mode === BrokerMode.Direct) {
             if (this.opts.usePort) {
-                this.port = browser.runtime.connect(this.opts.extensionId, { name: this.opts.namespace })
-                this.port.onMessage.addListener(this.onMessage)
+                this.connect()
             } else {
                 browser.runtime.onMessage.addListener(this.onMessage)
             }
         }
+    }
+
+    connect(): void {
+        this.port = browser.runtime.connect(this.opts.extensionId, { name: this.opts.namespace })
+
+        this.port.onMessage.addListener(this.onMessage)
+        this.port.onDisconnect.addListener(this.onDisconnect)
     }
 
     destroy(): void {
@@ -116,6 +127,22 @@ export class WebBroker extends EventEmitter implements Broker {
                 browser.runtime.onMessage.removeListener(this.onMessage)
             }
         }
+    }
+
+    private getLocalEvent(type: LocalEventType): string {
+        return `_extbroker_${type}`
+    }
+
+    private emitLocal<T>(type: LocalEventType, data?: T): void {
+        this.emit(this.getLocalEvent(type), data)
+    }
+
+    onLocal<T>(type: LocalEventType, listener: MessageListener<T>): this {
+        return super.on(this.getLocalEvent(type), listener)
+    }
+
+    private onDisconnect(): void {
+        this.emitLocal(LocalEventType.Disconnect)
     }
 
     private onWebMessage<T>(e: BrowserMessage<WebMessage<T>>) {
