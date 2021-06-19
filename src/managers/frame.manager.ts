@@ -53,4 +53,8 @@ export class FrameManager {
     clear() {
         this.paths.clear()
     }
+
+    destroy() {
+        this.paths = null
+    }
 }

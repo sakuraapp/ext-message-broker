@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events'
+import { Runtime } from 'webextension-polyfill-ts'
 import { browser } from '../browser'
-import { DEFAULT_WEB_OPTIONS, WebMessageType } from '../constants'
+import { DEFAULT_WEB_OPTIONS, WEB_MESSAGE_TYPE } from '../constants'
 import { MessageEvent } from '../events/message.event'
 import {
     Broker,
@@ -14,21 +15,40 @@ import {
 export type BrowserMessage<T> = globalThis.MessageEvent<T>
 
 export enum BrokerMode {
-    ContentScript,
-    External
+    Direct = 'direct',
+    External = 'external'
 }
 
 export interface WebMessage<T> {
-    type: typeof WebMessageType
+    type: typeof WEB_MESSAGE_TYPE
     data: Message<T>
     bridged?: boolean
+    extensionId: string
 }
 
 export interface WebBrokerOptions extends BrokerOptions {
     allowExternal: boolean
+    mode?: BrokerMode
     targetOrigin: string
     sourceOrigin?: string // to verify messages ? maybe set this to a default value
     extensionId?: string
+}
+
+function getMode(opts: WebBrokerOptions): BrokerMode {
+    switch (opts.mode) {
+        case BrokerMode.External:
+            return opts.mode
+            break
+        case BrokerMode.Direct:
+            if (opts.usePort) {
+                return opts.mode
+            }
+            break
+    }
+
+    return browser.extension
+        ? BrokerMode.Direct
+        : BrokerMode.External
 }
 
 export declare interface WebBroker {
@@ -38,6 +58,8 @@ export declare interface WebBroker {
 export class WebBroker extends EventEmitter implements Broker {
     private opts: WebBrokerOptions
     private mode: BrokerMode
+    
+    private port: Runtime.Port
 
     private get useWebMessages(): boolean {
         return this.opts.allowExternal || this.mode === BrokerMode.External
@@ -51,15 +73,17 @@ export class WebBroker extends EventEmitter implements Broker {
             ...opts,
         }
 
-        this.mode = browser.extension
-            ? BrokerMode.ContentScript
-            : BrokerMode.External
+        if (!browser.runtime || !browser.runtime.connect) {
+            this.opts.usePort = false
+        }
+
+        this.mode = getMode(this.opts)
 
         this.onWebMessage = this.onWebMessage.bind(this)
         this.onMessage = this.onMessage.bind(this)
 
-        if (!this.opts.extensionId && this.mode === BrokerMode.External) {
-            throw new Error('No extensionId provided in external mode.')
+        if (!this.opts.extensionId) {
+            throw new Error('No extensionId provided.')
         }
 
         this.init()
@@ -70,8 +94,13 @@ export class WebBroker extends EventEmitter implements Broker {
             window.addEventListener('message', this.onWebMessage)
         }
 
-        if (this.mode === BrokerMode.ContentScript) {
-            browser.runtime.onMessage.addListener(this.onMessage)
+        if (this.mode === BrokerMode.Direct) {
+            if (this.opts.usePort) {
+                this.port = browser.runtime.connect(this.opts.extensionId, { name: this.opts.namespace })
+                this.port.onMessage.addListener(this.onMessage)
+            } else {
+                browser.runtime.onMessage.addListener(this.onMessage)
+            }
         }
     }
 
@@ -80,8 +109,12 @@ export class WebBroker extends EventEmitter implements Broker {
             window.removeEventListener('message', this.onWebMessage)
         }
 
-        if (this.mode === BrokerMode.ContentScript) {
-            browser.runtime.onMessage.removeListener(this.onMessage)
+        if (this.mode === BrokerMode.Direct) {
+            if (this.port) {
+                this.port.disconnect()
+            } else {
+                browser.runtime.onMessage.removeListener(this.onMessage)
+            }
         }
     }
 
@@ -97,10 +130,14 @@ export class WebBroker extends EventEmitter implements Broker {
             return
         }
 
-        if (msg.type === WebMessageType) {
+        if (msg.type === WEB_MESSAGE_TYPE) {
+            if (msg.extensionId !== this.opts.extensionId) {
+                return
+            }
+            
             const message = e.data.data
 
-            if (this.mode === BrokerMode.ContentScript) {
+            if (this.mode === BrokerMode.Direct) {
                 if (msg.bridged) {
                     return
                 }
@@ -109,7 +146,7 @@ export class WebBroker extends EventEmitter implements Broker {
                     return
                 }
 
-                browser.runtime.sendMessage(this.createMessage<T>(message))
+                this.dispatchBrokerMessage<T>(message)
             } else {
                 this.onMessage<T>(message)
             }
@@ -127,7 +164,6 @@ export class WebBroker extends EventEmitter implements Broker {
     }
 
     private createMessage<T>(message: Message<T>): Message<T> {
-        message.extensionId = this.opts.extensionId
         message.namespace = this.opts.namespace
 
         return message
@@ -138,28 +174,33 @@ export class WebBroker extends EventEmitter implements Broker {
             return false
         }
 
-        if (message.extensionId !== this.opts.extensionId) {
-            return false
-        }
-
         return true
     }
 
     dispatchWebMessage<T>(message: Message<T>) {
         const msg: WebMessage<T> = {
-            type: WebMessageType,
+            type: WEB_MESSAGE_TYPE,
             data: message,
-            bridged: this.mode === BrokerMode.ContentScript,
+            bridged: this.mode === BrokerMode.Direct,
+            extensionId: this.opts.extensionId,
         }
 
         window.postMessage(msg, this.opts.targetOrigin)
     }
 
+    private dispatchBrokerMessage<T>(message: Message<T>) {
+        if (this.port) {
+            this.port.postMessage(message)
+        } else {
+            browser.runtime.sendMessage(message)
+        }
+    }
+
     dispatch<T>(message: Message<T>) {
         message = this.createMessage(message)
         
-        if (this.mode === BrokerMode.ContentScript) {
-            browser.runtime.sendMessage(message)
+        if (this.mode === BrokerMode.Direct) {
+            this.dispatchBrokerMessage<T>(message)
         } else {
             this.dispatchWebMessage<T>(message)
         }
@@ -187,11 +228,23 @@ export class WebBroker extends EventEmitter implements Broker {
         return this.send<T>(event, data, 'parent')
     }
 
+    sendToTab<T>(event: string, data?: T) {
+        return this.send<T>(event, data, 'tab')
+    }
+
+    sendToBackground<T>(event: string, data?: T) {
+        return this.send<T>(event, data, 'background')
+    }
+
     sendToTarget<T>(event: string, data: T, target: SourceInfo) {
         return this.dispatch<T>({
             type: event,
             data,
             target,
         })
+    }
+
+    broadcast<T>(event: string, data: T) {
+        return this.send(event, data, 'broadcast')
     }
 }

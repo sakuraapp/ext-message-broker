@@ -34,6 +34,15 @@ const broker = new WebBroker({
     extensionId: 'your browser extension id', // this is required
 })
 ```
+If your site is externally accessible, you can connect directly from the site:
+```ts
+import { WebBroker } from  'ext-message-broker'
+
+const broker = new WebBroker({
+    extensionId: 'your browser extension id', // this is required
+    mode: 'direct',
+})
+```
 
 ## Usage
 
@@ -61,15 +70,17 @@ broker.on('hello-there', (e) => {
     console.log(e.data)
 })
 
-broker.send('hello-world', { name: 'general-grievous' })
+broker.broadcast('hello-world', { name: 'general-grievous' }) // broadcasts to all connected brokers (except ones in current frame, aka the broker it came from to prevent echo - note: this WILL echo when usePort is disabled)
 
 broker.sendToParent('hello', 123) // sends to the frame's parent
 
 broker.sendToHost('hello', 123)
-
 // sendToHost is an equivalent of this:
 broker.sendToTarget('hello', 123, {
     tabId: 1234, // put a tab id here
     frameId: 0, // top most frame
 })
+
+broker.sendToBackground('hello', 123) // sends to the background message broker
+broker.send('hello', 123) // sends to background by default
 ```

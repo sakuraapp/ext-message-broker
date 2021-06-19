@@ -5,7 +5,7 @@ export interface SourceInfo {
     frameId?: number
 }
 
-export type TargetMode = 'parent' | 'host' | 'background'
+export type TargetMode = 'parent' | 'host' | 'tab' | 'background' | 'broadcast'
 
 export interface Message<T = any> {
     type: string
@@ -13,7 +13,6 @@ export interface Message<T = any> {
     source?: SourceInfo
     target?: SourceInfo
     targetMode?: TargetMode
-    extensionId?: string
     namespace?: string
 }
 
@@ -23,6 +22,7 @@ export interface Broker {
 
 export interface BrokerOptions {
     namespace?: string
+    usePort?: boolean
 }
 
 export type MessageListener<T> = (event: MessageEvent<T>) => void

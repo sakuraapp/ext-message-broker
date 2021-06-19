@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events'
 import { Runtime } from 'webextension-polyfill-ts'
+import { PortManager } from '../managers/port.manager'
 import { browser } from '../browser'
 import { MessageEvent } from '../events/message.event'
 import { FrameManager } from '../managers/frame.manager'
@@ -10,6 +11,7 @@ import {
     MessageListener,
     SourceInfo
 } from '../types'
+import { DEFAULT_OPTIONS } from '../constants'
 
 export declare interface MessageBroker {
     on<T>(event: string, listener: MessageListener<T>): this;
@@ -17,26 +19,56 @@ export declare interface MessageBroker {
 
 export class MessageBroker extends EventEmitter implements Broker {
     private readonly opts: BrokerOptions
-    private readonly frameManager = new FrameManager()
-    private readonly extensionId = browser.runtime.id
+
+    private frameManager = new FrameManager()
+    private portManager: PortManager
 
     constructor(opts: BrokerOptions = {}) {
         super()
 
-        this.opts = opts
+        this.opts = {
+            ...DEFAULT_OPTIONS,
+            ...opts,
+        }
+
         this.onMessage = this.onMessage.bind(this)
+        this.onConnect = this.onConnect.bind(this)
 
         this.init()
     }
 
     init(): void {
-        browser.runtime.onMessage.addListener(this.onMessage)
+        if (this.opts.usePort) {
+            this.portManager = new PortManager()
+            this.portManager.on('message', this.onMessage)
+
+            browser.runtime.onConnect.addListener(this.onConnect)
+        } else {
+            browser.runtime.onMessage.addListener(this.onMessage)
+        }
     }
 
     destroy(): void {
-        browser.runtime.onMessage.removeListener(this.onMessage)
+        if (this.opts.usePort) {
+            browser.runtime.onConnect.removeListener(this.onConnect)
+
+            this.portManager.off('message', this.onMessage)
+            this.portManager.destroy()
+        } else {
+            browser.runtime.onMessage.removeListener(this.onMessage)
+        }
         
-        this.frameManager.paths = null
+        this.frameManager.destroy()
+    }
+
+    private isNamespaceAllowed(input: string): boolean {
+        return input === this.opts.namespace
+    }    
+
+    private onConnect(port: Runtime.Port) {
+        if (this.isNamespaceAllowed(port.name)) {
+            this.portManager.add(port)
+        }
     }
 
     private onMessage<T>(message: Message<T>, sender: Runtime.MessageSender) {
@@ -51,11 +83,8 @@ export class MessageBroker extends EventEmitter implements Broker {
 
         if (message.targetMode) {
             switch (message.targetMode) {
-                case 'background': {
-                    const event = new MessageEvent<T>(message, this)
-
-                    this.emit(message.type, event)
-                }
+                case 'background':
+                    this.emitMessage<T>(message)
                     break
                 case 'host':
                     this.sendToHost<T>(
@@ -71,6 +100,20 @@ export class MessageBroker extends EventEmitter implements Broker {
                         target,
                     )
                     break
+                case 'tab':
+                    this.sendToTab<T>(
+                        message.type,
+                        message.data,
+                        target,
+                    )
+                    break
+                case 'broadcast':
+                    this.emitMessage<T>(message)
+                    this.broadcast(
+                        message.type,
+                        message.data,
+                        target,
+                    )
             }
         } else if (message.target) {
             this.send<T>(
@@ -82,23 +125,20 @@ export class MessageBroker extends EventEmitter implements Broker {
         }
     }
 
+    private emitMessage<T>(message: Message<T>) {
+        const event = new MessageEvent<T>(message, this)
+
+        this.emit(message.type, event)
+    }
+
     private createMessage<T>(message: Message<T>): Message<T> {
-        message.extensionId = this.extensionId
         message.namespace = this.opts.namespace
 
         return message
     }
 
     private isMessageValid<T>(message: Message<T>): boolean {
-        if (message.namespace !== this.opts.namespace) {
-            return false
-        }
-
-        if (message.extensionId !== this.extensionId) {
-            return false
-        }
-
-        return true
+        return this.isNamespaceAllowed(message.namespace)
     }
 
     async dispatch<T>(message: Message<T>): Promise<void> {
@@ -106,16 +146,27 @@ export class MessageBroker extends EventEmitter implements Broker {
 
         const { target } = message
 
-        if (target) {
-            let options
-        
-            if (target.frameId !== null && target.frameId !== undefined) {
-                options = { frameId: target.frameId } 
-            }
+        // delete unnecessary props to reduce message size
+        message.targetMode = null
+        message.target = null
 
-            await browser.tabs.sendMessage(target.tabId, message, options)
+        delete message.targetMode
+        delete message.target
+
+        if (this.portManager) {
+            this.portManager.dispatch(message, target)
         } else {
-            browser.runtime.sendMessage(message)
+            if (target) {
+                let options
+            
+                if (target.frameId !== null && target.frameId !== undefined) {
+                    options = { frameId: target.frameId } 
+                }
+
+                await browser.tabs.sendMessage(target.tabId, message, options)
+            } else {
+                browser.runtime.sendMessage(message) // todo: prevent echo
+            }
         }
     }
 
@@ -165,5 +216,19 @@ export class MessageBroker extends EventEmitter implements Broker {
             },
             source,
         )
+    }
+
+    // sends a message to all frames inside the sender's tab
+    sendToTab<T>(event: string, data: T, source: SourceInfo) {
+        this.send<T>(
+            event,
+            data,
+            { tabId: source.tabId },
+            source,
+        )
+    }
+
+    broadcast<T>(event: string, data?: T, source?: SourceInfo) {
+        this.send<T>(event, data, null, source)
     }
 }

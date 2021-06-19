@@ -2,10 +2,12 @@ import { browser } from './browser'
 import { WebBrokerOptions } from './brokers/web.broker'
 import { BrokerOptions } from './types'
 
-export const WebMessageType = 'message-broker'
+export const WEB_MESSAGE_TYPE = 'message-broker'
 
 export const DEFAULT_OPTIONS: BrokerOptions = {
-    namespace: 'default',
+    // namespace: 'default',
+    // no namespace by default to reduce message size
+    usePort: true,
 }
 
 export const DEFAULT_WEB_OPTIONS: WebBrokerOptions = {
