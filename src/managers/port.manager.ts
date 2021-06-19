@@ -63,13 +63,27 @@ export class PortManager extends EventEmitter {
 
     dispatch<T>(message: Message<T>, target: SourceInfo) {
         if (target) {
-            const port = this.findByTarget(target) // only ONE PORT per frame
+            let ports: Port[]
 
-            if (!port) {
+            if (target.frameId === undefined || target.frameId === null) {
+                ports = this.findMultiByTarget(target)
+            } else {
+                ports = []
+                
+                const port = this.findByTarget(target) // only ONE PORT per frame
+
+                if (port) {
+                    ports.push(port)
+                }
+            }
+
+            if (ports.length === 0) {
                 return console.warn(`Target ${JSON.stringify(target)} not found`)
             }
 
-            port.postMessage(message)
+            for (const port of ports) {
+                port.postMessage(message)
+            }
         } else {
             this.broadcast<T>(message)
         }
