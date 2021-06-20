@@ -6,10 +6,13 @@ import { FrameManager } from '../managers/frame.manager'
 import {
     Message,
     MessageListener,
-    SourceInfo
+    SourceInfo,
+    TargetMode
 } from '../types'
 import { DEFAULT_OPTIONS } from '../constants'
 import { Broker, BrokerOptions } from './broker.broker'
+
+export type TargetModeHandler<T, A> = (message: Message<T, A>) => void
 
 export declare interface MessageBroker {
     on<T>(event: string, listener: MessageListener<T>): this;
@@ -20,6 +23,7 @@ export class MessageBroker<A = void> extends Broker<A> {
 
     private frameManager = new FrameManager()
     private portManager: PortManager
+    private targetModes: Map<TargetMode<A>, TargetModeHandler<unknown, A>>
 
     constructor(opts: BrokerOptions = {}) {
         super()
@@ -32,6 +36,7 @@ export class MessageBroker<A = void> extends Broker<A> {
         this.onMessage = this.onMessage.bind(this)
         this.onConnect = this.onConnect.bind(this)
 
+        this.addTargetModes()
         this.init()
     }
 
@@ -57,6 +62,49 @@ export class MessageBroker<A = void> extends Broker<A> {
         }
         
         this.frameManager.destroy()
+    }
+
+    addTargetMode<T>(mode: TargetMode<A>, handler: TargetModeHandler<T, A>) {
+        this.targetModes.set(mode, handler)
+    }
+
+    private addTargetModes() {
+        this.addTargetMode('background', (message) => {
+            this.emitMessage(message)
+        })
+
+        this.addTargetMode('host', (message) => {
+            this.sendToHost(
+                message.type,
+                message.data,
+                message.source,
+            )
+        })
+        
+        this.addTargetMode('parent', (message) => {
+            this.sendToParent(
+                message.type,
+                message.data,
+                message.source,
+            )
+        })
+        
+        this.addTargetMode('tab', (message) => {
+            this.sendToTab(
+                message.type,
+                message.data,
+                message.source,
+            )
+        })
+        
+        this.addTargetMode('broadcast', (message) => {
+            this.emitMessage(message)
+            this.broadcast(
+                message.type,
+                message.data,
+                message.source,
+            )
+        })
     }
 
     private isNamespaceAllowed(input: string): boolean {
@@ -87,55 +135,29 @@ export class MessageBroker<A = void> extends Broker<A> {
             return
         }
 
-        const target: SourceInfo = {
+        message.source = {
             tabId: sender.tab.id,
             frameId: sender.frameId,
         }
 
-        message.source = target
-
         this.emitInbound<T>(message)
 
-        if (message.targetMode) {
-            switch (message.targetMode) {
-                case 'background':
-                    this.emitMessage<T>(message)
-                    break
-                case 'host':
-                    this.sendToHost<T>(
-                        message.type,
-                        message.data,
-                        target,
-                    )
-                    break
-                case 'parent':
-                    this.sendToParent<T>(
-                        message.type,
-                        message.data,
-                        target,
-                    )
-                    break
-                case 'tab':
-                    this.sendToTab<T>(
-                        message.type,
-                        message.data,
-                        target,
-                    )
-                    break
-                case 'broadcast':
-                    this.emitMessage<T>(message)
-                    this.broadcast(
-                        message.type,
-                        message.data,
-                        target,
-                    )
+        const { targetMode, target } = message
+
+        if (targetMode) {
+            const handler = this.targetModes.get(targetMode)
+
+            if (handler) {
+                handler(message)
+            } else {
+                console.warn(`Unknown targetMode: ${targetMode}`)
             }
-        } else if (message.target) {
+        } else if (target) {
             this.send<T>(
                 message.type,
                 message.data,
-                message.target,
                 target,
+                message.source,
             )
         }
     }
