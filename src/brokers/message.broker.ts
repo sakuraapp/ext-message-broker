@@ -12,7 +12,7 @@ import {
 import { DEFAULT_OPTIONS } from '../constants'
 import { Broker, BrokerOptions } from './broker.broker'
 
-export type TargetModeHandler<T, A> = (message: Message<T, A>) => void
+export type TargetModeHandler<T, A> = (message: Message<T, A>) => void | Promise<void>
 
 export declare interface MessageBroker {
     on<T>(event: string, listener: MessageListener<T>): this;
@@ -74,7 +74,7 @@ export class MessageBroker<A = void> extends Broker<A> {
         })
 
         this.addTargetMode('host', (message) => {
-            this.sendToHost(
+            return this.sendToHost(
                 message.type,
                 message.data,
                 message.source,
@@ -82,7 +82,7 @@ export class MessageBroker<A = void> extends Broker<A> {
         })
         
         this.addTargetMode('parent', (message) => {
-            this.sendToParent(
+            return this.sendToParent(
                 message.type,
                 message.data,
                 message.source,
@@ -90,7 +90,7 @@ export class MessageBroker<A = void> extends Broker<A> {
         })
         
         this.addTargetMode('tab', (message) => {
-            this.sendToTab(
+            return this.sendToTab(
                 message.type,
                 message.data,
                 message.source,
@@ -99,7 +99,8 @@ export class MessageBroker<A = void> extends Broker<A> {
         
         this.addTargetMode('broadcast', (message) => {
             this.emitMessage(message)
-            this.broadcast(
+            
+            return this.broadcast(
                 message.type,
                 message.data,
                 message.source,
@@ -244,7 +245,7 @@ export class MessageBroker<A = void> extends Broker<A> {
             return
         }
     
-        this.send(
+        await this.send(
             event,
             data,
             {
@@ -257,7 +258,7 @@ export class MessageBroker<A = void> extends Broker<A> {
 
     // sends a message to all frames inside the sender's tab
     sendToTab<T>(event: string, data: T, source: SourceInfo) {
-        this.send<T>(
+        return this.send<T>(
             event,
             data,
             { tabId: source.tabId },
@@ -266,6 +267,6 @@ export class MessageBroker<A = void> extends Broker<A> {
     }
 
     broadcast<T>(event: string, data?: T, source?: SourceInfo) {
-        this.send<T>(event, data, null, source)
+        return this.send<T>(event, data, null, source)
     }
 }
