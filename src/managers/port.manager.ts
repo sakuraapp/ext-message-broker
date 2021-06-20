@@ -61,7 +61,7 @@ export class PortManager extends EventEmitter {
         return this.ports.find((port) => isPortTarget(port, target))
     }
 
-    dispatch<T>(message: Message<T>, target: SourceInfo) {
+    dispatch<T, A>(message: Message<T, A>, target: SourceInfo) {
         if (target) {
             let ports: Port[]
 
@@ -85,11 +85,11 @@ export class PortManager extends EventEmitter {
                 port.postMessage(message)
             }
         } else {
-            this.broadcast<T>(message)
+            this.broadcast<T, A>(message)
         }
     }
 
-    broadcast<T>(message: Message<T>) {
+    broadcast<T, A>(message: Message<T, A>) {
         for (const port of this.ports) {
             if (!message.source || !isPortTarget(port, message.source)) {
                 port.postMessage(message)

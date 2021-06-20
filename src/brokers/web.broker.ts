@@ -17,9 +17,9 @@ export enum BrokerMode {
     External = 'external',
 }
 
-export interface WebMessage<T> {
+export interface WebMessage<T, A> {
     type: typeof WEB_MESSAGE_TYPE
-    data: Message<T>
+    data: Message<T, A>
     bridged?: boolean
     extensionId: string
 }
@@ -53,7 +53,7 @@ export declare interface WebBroker {
     on<T>(event: string, listener: MessageListener<T>): this;
 }
 
-export class WebBroker extends Broker {
+export class WebBroker<A = void> extends Broker<A> {
     private opts: WebBrokerOptions
     private mode: BrokerMode
     
@@ -127,7 +127,7 @@ export class WebBroker extends Broker {
         this.emitInternal('disconnect')
     }
 
-    private onWebMessage<T>(e: BrowserMessage<WebMessage<T>>) {
+    private onWebMessage<T>(e: BrowserMessage<WebMessage<T, A>>) {
         const { sourceOrigin } = this.opts
         const msg = e.data
 
@@ -162,23 +162,23 @@ export class WebBroker extends Broker {
         }
     }
 
-    private onMessage<T>(message: Message<T>) {
+    private onMessage<T>(message: Message<T, A>) {
         if (!this.isMessageValid(message)) {
             return
         }
 
-        const event = new MessageEvent(message, this)
+        const event = new MessageEvent<T, A>(message, this)
 
         this.emit(message.type, event)
     }
 
-    private createMessage<T>(message: Message<T>): Message<T> {
+    private createMessage<T>(message: Message<T, A>): Message<T, A> {
         message.namespace = this.opts.namespace
 
         return message
     }
 
-    private isMessageValid<T>(message: Message<T>): boolean {
+    private isMessageValid<T>(message: Message<T, A>): boolean {
         if (message.namespace !== this.opts.namespace) {
             return false
         }
@@ -186,8 +186,8 @@ export class WebBroker extends Broker {
         return true
     }
 
-    dispatchWebMessage<T>(message: Message<T>) {
-        const msg: WebMessage<T> = {
+    dispatchWebMessage<T>(message: Message<T, A>) {
+        const msg: WebMessage<T, A> = {
             type: WEB_MESSAGE_TYPE,
             data: message,
             bridged: this.mode === BrokerMode.Direct,
@@ -197,7 +197,7 @@ export class WebBroker extends Broker {
         window.postMessage(msg, this.opts.targetOrigin)
     }
 
-    private dispatchBrokerMessage<T>(message: Message<T>) {
+    private dispatchBrokerMessage<T>(message: Message<T, A>) {
         if (this.port) {
             this.port.postMessage(message)
         } else {
@@ -205,7 +205,7 @@ export class WebBroker extends Broker {
         }
     }
 
-    dispatch<T>(message: Message<T>) {
+    dispatch<T>(message: Message<T, A>) {
         message = this.createMessage(message)
         
         if (this.mode === BrokerMode.Direct) {
@@ -218,9 +218,9 @@ export class WebBroker extends Broker {
     send<T>(
         event: string,
         data?: T,
-        targetMode: TargetMode = 'background'
+        targetMode: TargetMode<A> = 'background'
     ) {
-        const message: Message<T> = {
+        const message: Message<T, A> = {
             type: event,
             data,
             targetMode,

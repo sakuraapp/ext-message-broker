@@ -15,7 +15,7 @@ export declare interface MessageBroker {
     on<T>(event: string, listener: MessageListener<T>): this;
 }
 
-export class MessageBroker extends Broker {
+export class MessageBroker<A = void> extends Broker<A> {
     private readonly opts: BrokerOptions
 
     private frameManager = new FrameManager()
@@ -73,16 +73,16 @@ export class MessageBroker extends Broker {
         }
     }
 
-    protected emitInbound<T>(message: Message<T>) {
+    protected emitInbound<T>(message: Message<T, A>) {
         this.emitInternal(`inbound:${message.type}`, message)
     }
 
     // allows listening to a message that isn't necessarily meant for the background
-    onInbound<T>(type: string, listener: (message: Message<T>) => void) {
-        this.onInternal<Message<T>>(`inbound:${type}`, listener)
+    onInbound<T>(type: string, listener: (message: Message<T, A>) => void) {
+        this.onInternal<Message<T, A>>(`inbound:${type}`, listener)
     }
 
-    private onMessage<T>(message: Message<T>, sender: Runtime.MessageSender) {
+    private onMessage<T>(message: Message<T, A>, sender: Runtime.MessageSender) {
         if (!this.isMessageValid<T>(message)) {
             return
         }
@@ -140,23 +140,23 @@ export class MessageBroker extends Broker {
         }
     }
 
-    private emitMessage<T>(message: Message<T>) {
-        const event = new MessageEvent<T>(message, this)
+    private emitMessage<T>(message: Message<T, A>) {
+        const event = new MessageEvent<T, A>(message, this)
 
         this.emit(message.type, event)
     }
 
-    private createMessage<T>(message: Message<T>): Message<T> {
+    private createMessage<T>(message: Message<T, A>): Message<T, A> {
         message.namespace = this.opts.namespace
 
         return message
     }
 
-    private isMessageValid<T>(message: Message<T>): boolean {
+    private isMessageValid<T>(message: Message<T, A>): boolean {
         return this.isNamespaceAllowed(message.namespace)
     }
 
-    async dispatch<T>(message: Message<T>): Promise<void> {
+    async dispatch<T>(message: Message<T, A>): Promise<void> {
         message = this.createMessage(message)
 
         const { target } = message
@@ -169,7 +169,7 @@ export class MessageBroker extends Broker {
         delete message.target
 
         if (this.portManager) {
-            this.portManager.dispatch(message, target)
+            this.portManager.dispatch<T, A>(message, target)
         } else {
             if (target) {
                 let options
@@ -191,7 +191,7 @@ export class MessageBroker extends Broker {
         target?: SourceInfo,
         source?: SourceInfo
     ): Promise<void> {
-        const message: Message<T> = {
+        const message: Message<T, A> = {
             type: event,
             data,
             target,

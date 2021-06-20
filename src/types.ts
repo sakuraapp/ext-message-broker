@@ -5,14 +5,14 @@ export interface SourceInfo {
     frameId?: number
 }
 
-export type TargetMode = 'parent' | 'host' | 'tab' | 'background' | 'broadcast'
+export type TargetMode<T = void> = 'parent' | 'host' | 'tab' | 'background' | 'broadcast' | T
 
-export interface Message<T = any> {
+export interface Message<T = any, A = void> {
     type: string
     data?: T
     source?: SourceInfo
     target?: SourceInfo
-    targetMode?: TargetMode
+    targetMode?: TargetMode<A>
     namespace?: string
 }
 

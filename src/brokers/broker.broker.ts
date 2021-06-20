@@ -9,8 +9,8 @@ export interface BrokerOptions {
     usePort?: boolean
 }
 
-export abstract class Broker extends EventEmitter {
-    abstract dispatch<T>(message: Message<T>): void
+export abstract class Broker<A> extends EventEmitter {
+    abstract dispatch<T>(message: Message<T, A>): void
 
     protected getInternalEvent(type: InternalEventType): string {
         return `_extbroker_${type}`

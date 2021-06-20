@@ -1,14 +1,14 @@
 import { Broker } from '../brokers/broker.broker'
 import {  Message, SourceInfo, TargetMode } from '../types'
 
-export class MessageEvent<T = any> {
+export class MessageEvent<T = any, A = void> {
     public readonly type: string
     public readonly data: T
     public readonly source: SourceInfo
 
-    private broker: Broker
+    private broker: Broker<A>
 
-    constructor(message: Message<T>, broker: Broker) {
+    constructor(message: Message<T, A>, broker: Broker<A>) {
         this.type = message.type
         this.data = message.data
         this.source = message.source
@@ -16,14 +16,14 @@ export class MessageEvent<T = any> {
         this.broker = broker
     }
 
-    reply<A>(event: string, data?: A) {
-        let targetMode: TargetMode
+    reply<B>(event: string, data?: B) {
+        let targetMode: TargetMode<A>
 
         if (!this.source) {
             targetMode = 'background'
         }
 
-        this.broker.dispatch<A>({
+        this.broker.dispatch<B>({
             type: event,
             data,
             target: this.source,
