@@ -1,4 +1,5 @@
-import { Broker, Message, SourceInfo, TargetMode } from '../types'
+import { Broker } from '../brokers/broker.broker'
+import {  Message, SourceInfo, TargetMode } from '../types'
 
 export class MessageEvent<T = any> {
     public readonly type: string

@@ -16,13 +16,4 @@ export interface Message<T = any> {
     namespace?: string
 }
 
-export interface Broker {
-    dispatch<T>(message: Message<T>): void
-}
-
-export interface BrokerOptions {
-    namespace?: string
-    usePort?: boolean
-}
-
 export type MessageListener<T> = (event: MessageEvent<T>) => void

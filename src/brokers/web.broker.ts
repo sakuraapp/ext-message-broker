@@ -1,26 +1,20 @@
-import { EventEmitter } from 'events'
 import { Runtime } from 'webextension-polyfill-ts'
 import { browser } from '../browser'
 import { DEFAULT_WEB_OPTIONS, WEB_MESSAGE_TYPE } from '../constants'
 import { MessageEvent } from '../events/message.event'
 import {
-    Broker,
-    BrokerOptions,
     Message,
     MessageListener,
     SourceInfo,
     TargetMode
 } from '../types'
+import { Broker, BrokerOptions } from './broker.broker'
 
 export type BrowserMessage<T> = globalThis.MessageEvent<T>
 
 export enum BrokerMode {
     Direct = 'direct',
     External = 'external',
-}
-
-export enum LocalEventType {
-    Disconnect = 'disconnect',
 }
 
 export interface WebMessage<T> {
@@ -59,7 +53,7 @@ export declare interface WebBroker {
     on<T>(event: string, listener: MessageListener<T>): this;
 }
 
-export class WebBroker extends EventEmitter implements Broker {
+export class WebBroker extends Broker {
     private opts: WebBrokerOptions
     private mode: BrokerMode
     
@@ -129,20 +123,8 @@ export class WebBroker extends EventEmitter implements Broker {
         }
     }
 
-    private getLocalEvent(type: LocalEventType): string {
-        return `_extbroker_${type}`
-    }
-
-    private emitLocal<T>(type: LocalEventType, data?: T): void {
-        this.emit(this.getLocalEvent(type), data)
-    }
-
-    onLocal<T>(type: LocalEventType, listener: MessageListener<T>): this {
-        return super.on(this.getLocalEvent(type), listener)
-    }
-
     private onDisconnect(): void {
-        this.emitLocal(LocalEventType.Disconnect)
+        this.emitInternal('disconnect')
     }
 
     private onWebMessage<T>(e: BrowserMessage<WebMessage<T>>) {

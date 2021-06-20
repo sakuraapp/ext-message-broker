@@ -1,6 +1,6 @@
 import { browser } from './browser'
+import { BrokerOptions } from './brokers/broker.broker'
 import { WebBrokerOptions } from './brokers/web.broker'
-import { BrokerOptions } from './types'
 
 export const WEB_MESSAGE_TYPE = 'message-broker'
 

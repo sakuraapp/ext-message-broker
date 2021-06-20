@@ -1,23 +1,21 @@
-import { EventEmitter } from 'events'
 import { Runtime } from 'webextension-polyfill-ts'
 import { PortManager } from '../managers/port.manager'
 import { browser } from '../browser'
 import { MessageEvent } from '../events/message.event'
 import { FrameManager } from '../managers/frame.manager'
 import {
-    Broker,
-    BrokerOptions,
     Message,
     MessageListener,
     SourceInfo
 } from '../types'
 import { DEFAULT_OPTIONS } from '../constants'
+import { Broker, BrokerOptions } from './broker.broker'
 
 export declare interface MessageBroker {
     on<T>(event: string, listener: MessageListener<T>): this;
 }
 
-export class MessageBroker extends EventEmitter implements Broker {
+export class MessageBroker extends Broker {
     private readonly opts: BrokerOptions
 
     private frameManager = new FrameManager()
@@ -75,6 +73,15 @@ export class MessageBroker extends EventEmitter implements Broker {
         }
     }
 
+    protected emitInbound<T>(message: Message<T>) {
+        this.emitInternal(`inbound:${message.type}`, message)
+    }
+
+    // allows listening to a message that isn't necessarily meant for the background
+    onInbound<T>(type: string, listener: (message: Message<T>) => void) {
+        this.onInternal<Message<T>>(`inbound:${type}`, listener)
+    }
+
     private onMessage<T>(message: Message<T>, sender: Runtime.MessageSender) {
         if (!this.isMessageValid<T>(message)) {
             return
@@ -86,6 +93,8 @@ export class MessageBroker extends EventEmitter implements Broker {
         }
 
         message.source = target
+
+        this.emitInbound<T>(message)
 
         if (message.targetMode) {
             switch (message.targetMode) {
@@ -171,7 +180,7 @@ export class MessageBroker extends EventEmitter implements Broker {
 
                 await browser.tabs.sendMessage(target.tabId, message, options)
             } else {
-                browser.runtime.sendMessage(message) // todo: prevent echo
+                await browser.runtime.sendMessage(message) // todo: prevent echo
             }
         }
     }
