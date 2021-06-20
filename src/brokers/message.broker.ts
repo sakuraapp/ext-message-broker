@@ -68,7 +68,7 @@ export class MessageBroker<A = void> extends Broker<A> {
         this.targetModes.set(mode, handler)
     }
 
-    private addTargetModes() {
+    protected addTargetModes() {
         this.addTargetMode('background', (message) => {
             this.emitMessage(message)
         })
