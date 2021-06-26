@@ -25,7 +25,6 @@ export interface WebMessage<T, A> {
 }
 
 export interface WebBrokerOptions extends BrokerOptions {
-    allowExternal: boolean
     mode?: BrokerMode
     targetOrigin: string
     sourceOrigin?: string // to verify messages ? maybe set this to a default value

@@ -7,6 +7,7 @@ export type InternalListener<T> = (event: T) => void
 export interface BrokerOptions {
     namespace?: string
     usePort?: boolean
+    allowExternal?: boolean
 }
 
 export abstract class Broker<A> extends EventEmitter {

@@ -23,7 +23,7 @@ export class MessageBroker<A = void> extends Broker<A> {
 
     private frameManager = new FrameManager()
     private portManager: PortManager
-    private targetModes: Map<TargetMode<A>, TargetModeHandler<unknown, A>>
+    private targetModes: Map<TargetMode<A>, TargetModeHandler<unknown, A>> = new Map()
 
     constructor(opts: BrokerOptions = {}) {
         super()
@@ -46,8 +46,16 @@ export class MessageBroker<A = void> extends Broker<A> {
             this.portManager.on('message', this.onMessage)
 
             browser.runtime.onConnect.addListener(this.onConnect)
+
+            if (this.opts.allowExternal) {
+                browser.runtime.onConnectExternal.addListener(this.onConnect)
+            }
         } else {
             browser.runtime.onMessage.addListener(this.onMessage)
+
+            if (this.opts.allowExternal) {
+                browser.runtime.onMessageExternal.addListener(this.onMessage)
+            }
         }
     }
 
@@ -55,10 +63,18 @@ export class MessageBroker<A = void> extends Broker<A> {
         if (this.opts.usePort) {
             browser.runtime.onConnect.removeListener(this.onConnect)
 
+            if (this.opts.allowExternal) {
+                browser.runtime.onConnectExternal.removeListener(this.onConnect)
+            }
+
             this.portManager.off('message', this.onMessage)
             this.portManager.destroy()
         } else {
             browser.runtime.onMessage.removeListener(this.onMessage)
+
+            if (this.opts.allowExternal) {
+                browser.runtime.onMessageExternal.removeListener(this.onMessage)
+            }
         }
         
         this.frameManager.destroy()

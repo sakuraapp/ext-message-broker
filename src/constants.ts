@@ -8,11 +8,11 @@ export const DEFAULT_OPTIONS: BrokerOptions = {
     // namespace: 'default',
     // no namespace by default to reduce message size
     usePort: true,
+    allowExternal: false,
 }
 
 export const DEFAULT_WEB_OPTIONS: WebBrokerOptions = {
     ...DEFAULT_OPTIONS,
-    allowExternal: false,
     targetOrigin: location ? location.href : null,
     extensionId: (browser.runtime || {}).id,
 }
