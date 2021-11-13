@@ -30,8 +30,10 @@ export abstract class Broker<A> extends EventEmitter {
         return super.on(this.getInternalEvent(type), listener)
     }
 
-    use<T>(type: MiddlewareType, fn: MiddlewarnFn<T, A>) {
+    use<T>(type: MiddlewareType, fn: MiddlewarnFn<T, A>): this {
         this.middleware[type].push(fn)
+
+        return this
     }
 
     protected runMiddleware<T>(
