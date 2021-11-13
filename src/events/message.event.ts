@@ -5,6 +5,7 @@ export class MessageEvent<T = any, A = void> {
     public readonly type: string
     public readonly data: T
     public readonly source: SourceInfo
+    public readonly time?: number
 
     private broker: Broker<A>
 
@@ -12,6 +13,7 @@ export class MessageEvent<T = any, A = void> {
         this.type = message.type
         this.data = message.data
         this.source = message.source
+        this.time = message.time
 
         this.broker = broker
     }
