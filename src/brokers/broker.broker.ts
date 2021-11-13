@@ -41,8 +41,12 @@ export abstract class Broker<A> extends EventEmitter {
         index = 0
     ) {
         const middleware = this.middleware[type]
+
+        if (middleware.length === 0) {
+            return callback()
+        }
+
         const fn = middleware[index]
-    
         const next = () => {
             if (index === middleware.length - 1) {
                 callback()
