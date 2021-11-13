@@ -17,3 +17,13 @@ export interface Message<T = any, A = void> {
 }
 
 export type MessageListener<T> = (event: MessageEvent<T>) => void
+
+export enum MiddlewareType {
+    Inbound = 'inbound',
+    Outbound = 'outbound',
+}
+
+export type MiddlewarnFn<T, A> = (
+    message: Message<T, A>,
+    next: () => void
+) => void

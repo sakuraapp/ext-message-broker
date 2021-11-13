@@ -6,6 +6,7 @@ import { FrameManager } from '../managers/frame.manager'
 import {
     Message,
     MessageListener,
+    MiddlewareType,
     SourceInfo,
     TargetMode
 } from '../types'
@@ -157,26 +158,28 @@ export class MessageBroker<A = void> extends Broker<A> {
             frameId: sender.frameId,
         }
 
-        this.emitInbound<T>(message)
+        this.runMiddleware(MiddlewareType.Inbound, message, () => {
+            this.emitInbound<T>(message)
 
-        const { targetMode, target } = message
+            const { targetMode, target } = message
 
-        if (targetMode) {
-            const handler = this.targetModes.get(targetMode)
+            if (targetMode) {
+                const handler = this.targetModes.get(targetMode)
 
-            if (handler) {
-                handler(message)
-            } else {
-                console.warn(`Unknown targetMode: ${targetMode}`)
+                if (handler) {
+                    handler(message)
+                } else {
+                    console.warn(`Unknown targetMode: ${targetMode}`)
+                }
+            } else if (target) {
+                this.send<T>(
+                    message.type,
+                    message.data,
+                    target,
+                    message.source,
+                )
             }
-        } else if (target) {
-            this.send<T>(
-                message.type,
-                message.data,
-                target,
-                message.source,
-            )
-        }
+        })
     }
 
     private emitMessage<T>(message: Message<T, A>) {
@@ -195,33 +198,41 @@ export class MessageBroker<A = void> extends Broker<A> {
         return this.isNamespaceAllowed(message.namespace)
     }
 
-    async dispatch<T>(message: Message<T, A>): Promise<void> {
-        message = this.createMessage(message)
+    dispatch<T>(message: Message<T, A>): Promise<void> {
+        return new Promise((resolve, reject) => {
+            message = this.createMessage(message)
 
-        const { target } = message
+            this.runMiddleware(MiddlewareType.Outbound, message, () => {
+                const { target } = message
 
-        // delete unnecessary props to reduce message size
-        message.targetMode = null
-        message.target = null
+                // delete unnecessary props to reduce message size
+                message.targetMode = null
+                message.target = null
 
-        delete message.targetMode
-        delete message.target
+                delete message.targetMode
+                delete message.target
 
-        if (this.portManager) {
-            this.portManager.dispatch<T, A>(message, target)
-        } else {
-            if (target) {
-                let options
-            
-                if (target.frameId !== null && target.frameId !== undefined) {
-                    options = { frameId: target.frameId } 
+                if (this.portManager) {
+                    this.portManager.dispatch<T, A>(message, target)
+                } else {
+                    if (target) {
+                        let options
+                    
+                        if (target.frameId !== null && target.frameId !== undefined) {
+                            options = { frameId: target.frameId } 
+                        }
+
+                        browser.tabs.sendMessage(target.tabId, message, options)
+                            .then(() => resolve())
+                            .catch(reject)
+                    } else {
+                        browser.runtime.sendMessage(message) // todo: prevent echo
+                            .then(() => resolve)
+                            .catch(reject)
+                    }
                 }
-
-                await browser.tabs.sendMessage(target.tabId, message, options)
-            } else {
-                await browser.runtime.sendMessage(message) // todo: prevent echo
-            }
-        }
+            })
+        })
     }
 
     send<T>(
