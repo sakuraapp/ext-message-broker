@@ -76,6 +76,7 @@ export class WebBroker<A = void> extends Broker<A> {
 
         this.mode = getMode(this.opts)
 
+        this.dispatchBrokerMessage = this.dispatchBrokerMessage.bind(this)
         this.onWebMessage = this.onWebMessage.bind(this)
         this.onMessage = this.onMessage.bind(this)
         this.onDisconnect = this.onDisconnect.bind(this)

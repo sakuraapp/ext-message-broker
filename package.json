@@ -1,6 +1,6 @@
 {
   "name": "ext-message-broker",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Easier communication for browser extensions",
   "main": "dist/index.js",
   "scripts": {
