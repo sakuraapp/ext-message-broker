@@ -175,6 +175,10 @@ export class WebBroker<A = void> extends Broker<A> {
     private createMessage<T>(message: Message<T, A>): Message<T, A> {
         message.namespace = this.opts.namespace
 
+        if (!message.time) {
+            message.time = new Date().getTime()
+        }
+
         return message
     }
 
@@ -218,12 +222,14 @@ export class WebBroker<A = void> extends Broker<A> {
     send<T>(
         event: string,
         data?: T,
-        targetMode: TargetMode<A> = 'background'
+        targetMode: TargetMode<A> = 'background',
+        time?: number
     ) {
         const message: Message<T, A> = {
             type: event,
             data,
             targetMode,
+            time,
         }
 
         this.dispatch<T>(message)

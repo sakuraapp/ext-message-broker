@@ -19,9 +19,10 @@ export declare interface MessageBroker {
 }
 
 export class MessageBroker<A = void> extends Broker<A> {
+    public readonly frameManager = new FrameManager()
+
     private readonly opts: BrokerOptions
 
-    private frameManager = new FrameManager()
     private portManager: PortManager
     private targetModes: Map<TargetMode<A>, TargetModeHandler<unknown, A>> = new Map()
 
@@ -188,6 +189,10 @@ export class MessageBroker<A = void> extends Broker<A> {
     private createMessage<T>(message: Message<T, A>): Message<T, A> {
         message.namespace = this.opts.namespace
 
+        if (!message.time) {
+            message.time = new Date().getTime()
+        }
+
         return message
     }
 
@@ -228,13 +233,15 @@ export class MessageBroker<A = void> extends Broker<A> {
         event: string,
         data?: T,
         target?: SourceInfo,
-        source?: SourceInfo
+        source?: SourceInfo,
+        time?: number
     ): Promise<void> {
         const message: Message<T, A> = {
             type: event,
             data,
             target,
             source,
+            time,
         }
     
         return this.dispatch(message)
