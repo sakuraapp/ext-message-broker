@@ -57,9 +57,14 @@ export class WebBroker<A = void> extends Broker<A> {
     private mode: BrokerMode
     
     private port: Runtime.Port
+    private isConnected: boolean
 
     private get useWebMessages(): boolean {
         return this.opts.allowExternal || this.mode === BrokerMode.External
+    }
+
+    public get connected(): boolean {
+        return this.isConnected
     }
 
     constructor(opts: Partial<WebBrokerOptions> = {}) {
@@ -100,6 +105,8 @@ export class WebBroker<A = void> extends Broker<A> {
                 browser.runtime.onMessage.addListener(this.onMessage)
             }
         }
+
+        this.isConnected = true // don't need to check if using a port and if it has connected because if it doesn't, it will throw an error and we'll never get here
     }
 
     connect(): void {
@@ -115,15 +122,17 @@ export class WebBroker<A = void> extends Broker<A> {
         }
 
         if (this.mode === BrokerMode.Direct) {
-            if (this.port) {
-                this.port.disconnect()
-            } else {
+            if (!this.opts.usePort) {
                 browser.runtime.onMessage.removeListener(this.onMessage)
+            } else if (this.isConnected) {
+                this.port.disconnect()
             }
         }
     }
 
     private onDisconnect(): void {
+        this.isConnected = false
+
         this.emitInternal('disconnect')
     }
 
